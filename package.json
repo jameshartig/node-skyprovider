@@ -1,0 +1,31 @@
+{
+  "name": "skyprovider",
+  "version": "0.0.1",
+  "description": "Advertises a service to skydns through skyapi",
+  "main": "skyProvider.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "nodeunit tests"
+  },
+  "devDependencies": {
+    "nodeunit": "0.9.0"
+  },
+  "dependencies": {
+    "ws": "^0.7.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/fastest963/node-srvclient.git"
+  },
+  "keywords": [
+    "dns",
+    "skyapi",
+    "provider",
+    "skydns"
+  ],
+  "author": "James Hartig <fastest963@gmail.com>",
+  "license": "MIT",
+  "readmeFilename": "README.md"
+}
