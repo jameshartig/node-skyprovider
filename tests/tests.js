@@ -108,17 +108,21 @@ exports.provide = function(test) {
 
 exports.connected = function(test) {
     test.ok(provider.connected('test'));
+    //make sure the ping timer was started
+    test.notEqual(provider.interval, null);
     test.done();
 };
 
 //todo: test to make sure pinging works
 
 exports.stop = function(test) {
-    test.expect(1);
+    test.expect(2);
     provider.once('stopped', function() {
         //we annoyingly have to wait for the server to receive the close and emit 'close' on the connection
         setTimeout(function() {
             test.ok(!verifyProvide('test', 8000));
+            //make sure the ping timer was stopped
+            test.ok(provider.interval === null);
             test.done();
         }, 100);
     });

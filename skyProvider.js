@@ -65,6 +65,7 @@ function cleanup(client, name) {
     delete client.connections[name];
     if (Object.keys(client.connections).length === 0) {
         clearInterval(client.interval);
+        client.interval = null;
     }
 }
 
@@ -110,6 +111,7 @@ SkyAPIClient.prototype.ping = function() {
     }
     if (!foundConnection) {
         clearInterval(this.interval);
+        this.interval = null;
     }
     return this;
 };
