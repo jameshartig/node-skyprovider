@@ -2,7 +2,7 @@ var util = require('util'),
     url = require('url'),
     EventEmitter = require('events').EventEmitter,
     WebSocket = require('ws'),
-    Log = require('modulelog');
+    Log = require('modulelog')('skyprovider');
 
 function SkyAPIClient(endpoint) {
     EventEmitter.call(this);
