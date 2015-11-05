@@ -10,9 +10,10 @@
     "test": "nodeunit tests"
   },
   "devDependencies": {
-    "nodeunit": "0.9.0"
+    "nodeunit": "0.9.1"
   },
   "dependencies": {
+    "modulelog": "^0.1.0",
     "ws": "^0.7.2"
   },
   "repository": {

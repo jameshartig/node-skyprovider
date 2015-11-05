@@ -2,7 +2,7 @@ var util = require('util'),
     url = require('url'),
     EventEmitter = require('events').EventEmitter,
     WebSocket = require('ws'),
-    debug = util.debuglog('skyprovider');
+    Log = require('modulelog');
 
 function SkyAPIClient(endpoint) {
     EventEmitter.call(this);
@@ -17,7 +17,7 @@ function SkyAPIClient(endpoint) {
 util.inherits(SkyAPIClient, EventEmitter);
 
 function wsConnect(client, name, endpoint) {
-    debug('opening ws on', endpoint);
+    Log.info('Opening SkyAPI connection', {endpoint: endpoint});
     var ws = new WebSocket(endpoint);
     ws.on('open', client._onWSOpen.bind(client, name));
     ws.on('close', client._onWSClose.bind(client, name));
@@ -25,7 +25,7 @@ function wsConnect(client, name, endpoint) {
     return ws;
 }
 SkyAPIClient.prototype.provideService = function(name, port, opts) {
-    debug('provideService', name, port);
+    Log.info('Providing SkyAPI service', {name: name, port: port});
     var options = opts || {},
         wsUrl, key, ws;
     if (typeof name !== 'string' || !name) {
@@ -70,7 +70,7 @@ function cleanup(client, name) {
 }
 
 SkyAPIClient.prototype.stopService = function(name) {
-    debug('stopService', name);
+    Log.info('Removing provided SkyAPI service', {name: name});
     if (!this.connections.hasOwnProperty(name)) {
         return;
     }
@@ -96,17 +96,17 @@ SkyAPIClient.prototype.connected = function(name) {
 
 SkyAPIClient.prototype.ping = function() {
     var foundConnection = false,
-        key;
-    for (key in this.connections) {
-        if (!this.connections.hasOwnProperty(key) || !this.connections[key].ws) {
+        name;
+    for (name in this.connections) {
+        if (!this.connections.hasOwnProperty(name) || !this.connections[name].ws) {
             continue;
         }
         try {
-            this.connections[key].ws.ping();
+            this.connections[name].ws.ping();
             foundConnection = true;
         } catch (e) {
-            debug('ping failed', e);
-            this.stopService(key);
+            Log.error('SkyAPI ping failed', {error: e, service: name});
+            this.stopService(name);
         }
     }
     if (!foundConnection) {
@@ -117,7 +117,7 @@ SkyAPIClient.prototype.ping = function() {
 };
 
 SkyAPIClient.prototype._onWSOpen = function(name) {
-    debug('_onWSOpen', name);
+    Log.debug('SkyAPI connection open', {service: name});
     if (!this.connections.hasOwnProperty(name)) {
         //it must've been removed...
         return;
@@ -149,12 +149,12 @@ function reconnect(client, name) {
 }
 
 SkyAPIClient.prototype._onWSClose = function(name) {
-    debug('_onWSClose', name);
+    Log.info('SkyAPI connection closed', {service: name});
     reconnect(this, name);
 };
 
 SkyAPIClient.prototype._onWSError = function(name, error) {
-    debug('_onWSError', name, error);
+    Log.error('SkyAPI connection error', {service: name, error: error});
     reconnect(this, name);
 };
 
