@@ -1,6 +1,6 @@
 {
   "name": "skyprovider",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Advertises a service to skydns through skyapi",
   "main": "skyProvider.js",
   "directories": {
