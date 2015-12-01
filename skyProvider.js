@@ -40,7 +40,7 @@ function resolve(endpoint, cb) {
     // if we don't have a port try getting one from SRV
     srv.getRandomTarget(urlObj.host || urlObj.hostname, function(err, target) {
         if (target) {
-            Log.info('Resolved SkyAPI endpoint to', {host: target.host, port: target.port});
+            Log.debug('Resolved SkyAPI endpoint to', {host: target.name, port: target.port});
             var copy = url.parse(url.format(urlObj), true);
             copy.hostname = target.name;
             copy.port = target.port;
@@ -58,7 +58,7 @@ function wsConnect(client, name, endpoint) {
     Log.info('Opening SkyAPI connection', {endpoint: endpoint});
     resolve(endpoint, function(urlObj) {
         var urlStr = url.format(urlObj),
-            ws = new WebSocket(url.format(urlObj));
+            ws = new WebSocket(urlStr);
         client._registerWS(ws, name);
         ws.on('open', client._onWSOpen.bind(client, name));
         ws.on('close', client._onWSClose.bind(client, name));
