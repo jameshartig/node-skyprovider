@@ -2,32 +2,73 @@ var util = require('util'),
     url = require('url'),
     EventEmitter = require('events').EventEmitter,
     WebSocket = require('ws'),
-    Log = require('modulelog')('skyprovider');
+    Log = require('modulelog')('skyprovider'),
+    srv = require('srvclient');
 
-function SkyAPIClient(endpoint) {
+function SkyAPIClient(endpoint, options) {
     EventEmitter.call(this);
 
     this.connections = {};
     this.interval = null;
     this.endpoint = url.parse(endpoint);
-    this.endpoint.protocol = 'ws';
+    if (!this.endpoint.protocol) {
+        this.endpoint.protocol = 'ws';
+    }
     this.endpoint.search = null;
     this.endpoint.query = null;
+    this.options = options || {};
+    if (!this.options.hasOwnProperty('reconnect')) {
+        this.options.reconnect = true;
+    }
+    if (!this.options.hasOwnProperty('reconnectDelay')) {
+        this.options.reconnectDelay = 3000;
+    }
+    if (!this.options.hasOwnProperty('pingInterval')) {
+        this.options.pingInterval = 15000;
+    }
 }
 util.inherits(SkyAPIClient, EventEmitter);
 
+// returns a copy of urlObj
+function resolve(endpoint, cb) {
+    var urlObj = url.parse(endpoint);
+    // if we already have a port then don't bother resolving with SRV
+    if (urlObj.port) {
+        cb(urlObj);
+        return;
+    }
+    // if we don't have a port try getting one from SRV
+    srv.getRandomTarget(urlObj.host || urlObj.hostname, function(err, target) {
+        if (target) {
+            Log.info('Resolved SkyAPI endpoint to', {host: target.host, port: target.port});
+            var copy = url.parse(url.format(urlObj), true);
+            copy.hostname = target.name;
+            copy.port = target.port;
+            copy.host = '';
+            cb(copy);
+        } else {
+            //since we failed set the port to the default one
+            urlObj.port = urlObj.protocol === 'wss' ? 443 : 80;
+            cb(urlObj);
+        }
+    }.bind(this));
+}
+
 function wsConnect(client, name, endpoint) {
     Log.info('Opening SkyAPI connection', {endpoint: endpoint});
-    var ws = new WebSocket(endpoint);
-    ws.on('open', client._onWSOpen.bind(client, name));
-    ws.on('close', client._onWSClose.bind(client, name));
-    ws.on('error', client._onWSError.bind(client, name));
-    return ws;
+    resolve(endpoint, function(urlObj) {
+        var urlStr = url.format(urlObj),
+            ws = new WebSocket(url.format(urlObj));
+        client._registerWS(ws, name);
+        ws.on('open', client._onWSOpen.bind(client, name));
+        ws.on('close', client._onWSClose.bind(client, name));
+        ws.on('error', client._onWSError.bind(client, name));
+    });
 }
 SkyAPIClient.prototype.provideService = function(name, port, opts) {
     Log.info('Providing SkyAPI service', {name: name, port: port});
     var options = opts || {},
-        wsUrl, key, ws;
+        wsUrl, key;
     if (typeof name !== 'string' || !name) {
         throw new TypeError('Invalid name sent to provideService');
     }
@@ -47,16 +88,13 @@ SkyAPIClient.prototype.provideService = function(name, port, opts) {
         }
     }
     wsUrl = url.format(this.endpoint);
-    ws = wsConnect(this, name, wsUrl);
-    this.endpoint.query = null;
     this.connections[name] = {
         url: wsUrl,
-        connected: false,
-        ws: ws
+        state: 1,
+        ws: null
     };
-    if (options.unRef) {
-        ws._socket.unref();
-    }
+    this.endpoint.query = null;
+    wsConnect(this, name, wsUrl);
     return this;
 };
 SkyAPIClient.prototype.provide = SkyAPIClient.prototype.provideService;
@@ -69,18 +107,22 @@ function cleanup(client, name) {
     }
 }
 
+function close(ws) {
+    if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+    } else if (ws.readyState === WebSocket.CONNECTING) {
+        ws.terminate();
+    }
+    ws.removeAllListeners();
+}
+
 SkyAPIClient.prototype.stopService = function(name) {
     Log.info('Removing provided SkyAPI service', {name: name});
     if (!this.connections.hasOwnProperty(name)) {
         return;
     }
     if (this.connections[name].ws) {
-        if (this.connections[name].connected) {
-            this.connections[name].ws.close();
-        } else {
-            this.connections[name].ws.terminate();
-        }
-        this.connections[name].ws.removeAllListeners();
+        close(this.connections[name].ws);
     }
     cleanup(this, name);
     this.emit('stopped', name);
@@ -91,7 +133,7 @@ SkyAPIClient.prototype.connected = function(name) {
     if (!this.connections.hasOwnProperty(name)) {
         return false;
     }
-    return this.connections[name].connected;
+    return this.connections[name].state === 2;
 };
 
 SkyAPIClient.prototype.ping = function() {
@@ -116,18 +158,26 @@ SkyAPIClient.prototype.ping = function() {
     return this;
 };
 
-SkyAPIClient.prototype._onWSOpen = function(name) {
-    Log.debug('SkyAPI connection open', {service: name});
+SkyAPIClient.prototype._registerWS = function(ws, name) {
     if (!this.connections.hasOwnProperty(name)) {
         //it must've been removed...
         return;
     }
+    this.connections[name].ws = ws;
+};
+
+SkyAPIClient.prototype._onWSOpen = function(name) {
+    if (!this.connections.hasOwnProperty(name)) {
+        //it must've been removed...
+        return;
+    }
+    Log.debug('SkyAPI connection open', {service: name});
     //add an interval if there isn't already one added
     if (this.interval === null) {
-        this.interval = setInterval(this.ping.bind(this), 15000);
+        this.interval = setInterval(this.ping.bind(this), this.options.pingInterval);
         this.interval.unref();
     }
-    this.connections[name].connected = true;
+    this.connections[name].state = 2;
     this.emit('providing', name);
 };
 
@@ -136,16 +186,22 @@ function reconnect(client, name) {
         //it must've been removed...
         return;
     }
-    client.connections[name].ws.removeAllListeners();
-    client.connections[name].ws = null;
+    if (!client.options.reconnect) {
+        Log.info('SkyAPI connection not reconnecting', {service: name});
+        client.stopService(name);
+        return;
+    }
+    close(client.connections[name].ws);
+    client.connections[name].state = 0;
     //try to reconnect in 3 seconds
     setTimeout(function() {
         //if it doesn't exist anymore on connections than it was stopped
-        //if there already is a ws then it already is trying to connect
-        if (client.connections.hasOwnProperty(name) && !client.connections[name].ws) {
-            client.connections[name].ws = wsConnect(client, name, client.connections[name].url);
+        //if there already is a state then something is connecting
+        if (client.connections.hasOwnProperty(name) && client.connections[name].state === 0) {
+            client.connections[name].state = 1;
+            wsConnect(client, name, client.connections[name].url);
         }
-    }, 3000);
+    }, client.options.reconnectDelay);
 }
 
 SkyAPIClient.prototype._onWSClose = function(name) {

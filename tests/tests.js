@@ -3,7 +3,8 @@ var url = require('url'),
     SkyProvider = require('../skyProvider.js'),
     currentServices = [],
     serverPort = 14053,
-    provider = new SkyProvider('ws://127.0.0.1:' + serverPort + '/provide'),
+    provider = new SkyProvider('ws://127.0.0.1:' + serverPort + '/provide', {reconnect: false}),
+    srvProvider = new SkyProvider('ws://_skyprovider._tcp.mysuperfancyapi.com/provide', {reconnect: false}),
     server;
 
 //from https://github.com/caolan/nodeunit/issues/244
@@ -127,6 +128,19 @@ exports.stop = function(test) {
         }, 100);
     });
     provider.stopService('test');
+};
+
+exports.provideSrv = function(test) {
+    test.expect(1);
+    srvProvider.once('providing', function() {
+        test.ok(verifyProvide('testsrv', 8000));
+        srvProvider.stopService('testsrv');
+    });
+    srvProvider.once('stopped', function() {
+        srvProvider.removeAllListeners('providing');
+        test.done();
+    });
+    srvProvider.provideService('testsrv', 8000);
 };
 
 //unfortunately .unref() doesn't work on the websocket server

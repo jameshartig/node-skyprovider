@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "modulelog": "^0.2.0",
+    "srvclient": "0.0.3",
     "ws": "^0.7.2"
   },
   "repository": {

@@ -1,5 +1,8 @@
 ## Changelog ##
 
+### 0.2.0 ###
+* By default, try to resolve endpoints without a port with a SRV lookup
+
 ### 0.1.0 ###
 * Switch to using modulelog
 
