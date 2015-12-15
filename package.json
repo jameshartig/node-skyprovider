@@ -15,7 +15,7 @@
   "dependencies": {
     "modulelog": "^0.2.0",
     "srvclient": "0.0.3",
-    "ws": "^0.7.2"
+    "ws": "^0.8.1"
   },
   "repository": {
     "type": "git",
