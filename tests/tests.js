@@ -3,7 +3,7 @@ var url = require('url'),
     SkyProvider = require('../skyProvider.js'),
     currentServices = [],
     serverPort = 14053,
-    provider = new SkyProvider('ws://127.0.0.1:' + serverPort + '/provide', {reconnect: false}),
+    provider = new SkyProvider('ws://127.0.0.1:' + serverPort + '/provide', {reconnectDelay: 100}),
     srvProvider = new SkyProvider('ws://_skyprovider._tcp.mysuperfancyapi.com/provide', {reconnect: false}),
     server;
 
@@ -114,7 +114,29 @@ exports.connected = function(test) {
     test.done();
 };
 
-//todo: test to make sure pinging works
+exports.ping = function(test) {
+    test.expect(3);
+    provider.once('providing', function() {
+        test.ok(verifyProvide('test-ping', 8000));
+        //remove listeners on close so we don't try to reconnect on close
+        provider.connections['test-ping'].ws.removeAllListeners('close');
+        provider.connections['test-ping'].ws.on('close', function() {
+            //we annoyingly have to wait for the server to receive the close and emit 'close' on the connection
+            setTimeout(function() {
+                test.ok(!verifyProvide('test-ping', 8000));
+                provider.ping();
+
+                provider.once('providing', function() {
+                    test.ok(verifyProvide('test-ping', 8000));
+                    provider.stopService('test-ping');
+                    test.done();
+                });
+            }, 100);
+        });
+        provider.connections['test-ping'].ws.close();
+    });
+    provider.provideService('test-ping', 8000);
+};
 
 exports.stop = function(test) {
     test.expect(2);

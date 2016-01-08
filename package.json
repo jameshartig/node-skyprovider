@@ -10,12 +10,12 @@
     "test": "nodeunit tests"
   },
   "devDependencies": {
-    "nodeunit": "0.9.1"
+    "nodeunit": "^0.9.1"
   },
   "dependencies": {
     "modulelog": "^0.2.0",
-    "srvclient": "0.0.3",
-    "ws": "^0.8.1"
+    "srvclient": ">=0.0.3 <0.1.0",
+    "ws": "^1.0.1"
   },
   "repository": {
     "type": "git",

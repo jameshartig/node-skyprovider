@@ -108,12 +108,13 @@ function cleanup(client, name) {
 }
 
 function close(ws) {
+    //remove all listeners first so we don't trigger 'close'
+    ws.removeAllListeners();
     if (ws.readyState === WebSocket.OPEN) {
         ws.close();
     } else if (ws.readyState === WebSocket.CONNECTING) {
         ws.terminate();
     }
-    ws.removeAllListeners();
 }
 
 SkyAPIClient.prototype.stopService = function(name) {
@@ -148,7 +149,7 @@ SkyAPIClient.prototype.ping = function() {
             foundConnection = true;
         } catch (e) {
             Log.error('SkyAPI ping failed', {error: e, service: name});
-            this.stopService(name);
+            reconnect(this, name);
         }
     }
     if (!foundConnection) {

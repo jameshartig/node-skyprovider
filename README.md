@@ -52,7 +52,9 @@ SkyProvider implements the EventEmitter class.
 
 `function (name) {}`
 
-Emitted when the `name` service has been successfully advertised to skyapi. 
+Emitted when the `name` service has been successfully advertised to skyapi. This
+may be fired more than once if the connection is automatically restored after
+being lost.
 
 ### stopped ###
 
