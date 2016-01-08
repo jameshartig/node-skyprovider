@@ -1,5 +1,9 @@
 ## Changelog ##
 
+### 0.2.2 ###
+* Updated dependencies (importantly ws to 1.0.1)
+* Reconnect after ping failure
+
 ### 0.2.1 ###
 * Updated dependencies
 
