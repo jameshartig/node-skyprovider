@@ -39,7 +39,7 @@ function resolve(endpoint, cb) {
     }
     // if we don't have a port try getting one from SRV
     srv.getRandomTarget(urlObj.host || urlObj.hostname, function(err, target) {
-        if (target) {
+        if (!err && target) {
             Log.debug('Resolved SkyAPI endpoint to', {host: target.name, port: target.port});
             var copy = url.parse(url.format(urlObj), true);
             copy.hostname = target.name;
